@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   DEFAULT_TEMPLATE_ID,
   formatAmount,
   formatDateTime,
   getTemplateBackground,
+  hasSenderDetails,
+  maskAccountNumber,
   resolveLogo,
   statusModifier,
 } from "../../utils/helpers";
@@ -16,20 +18,61 @@ import "./EmailPreview.css";
 const initials = (name) =>
   (name || "N").trim().charAt(0).toUpperCase() || "N";
 
+/**
+ * Renders the logo when one is available and loads successfully, otherwise
+ * falls back to the sender initials badge. Tracks the exact source that
+ * failed so switching to a working URL automatically re-renders the image.
+ */
 const Logo = ({ message, className }) => {
   const src = resolveLogo(message);
-  if (src) {
+  const [failedSrc, setFailedSrc] = useState("");
+
+  const showImage = Boolean(src) && failedSrc !== src;
+
+  if (showImage) {
     return (
       <img
+        key={src}
         className={className}
         src={src}
         alt={message.senderName ? `${message.senderName} logo` : "Logo"}
+        onError={() => setFailedSrc(src)}
+        referrerPolicy="no-referrer"
       />
     );
   }
+
   return (
     <div className={`${className} ${className}--fallback`}>
       {initials(message.senderName)}
+    </div>
+  );
+};
+
+/**
+ * Renders the stacked sender details value used inside every template's
+ * summary row. Line 1: sender account name. Line 2: bank + masked
+ * account number.
+ */
+const SenderDetailsValue = ({ message }) => {
+  const name = (message.senderAccountName || "").trim();
+  const bank = (message.senderBankName || "").trim();
+  const masked = maskAccountNumber(message.senderAccountNumber);
+
+  if (!name && !bank && !masked) return null;
+
+  const hasMeta = Boolean(bank || masked);
+
+  return (
+    <div className="email-sender">
+      {name && <div className="email-sender__name">{name}</div>}
+      {hasMeta && (
+        <div className="email-sender__meta">
+          {bank && <span className="email-sender__bank">{bank}</span>}
+          {bank && masked && <span className="email-sender__sep"> • </span>}
+          {masked && <span className="email-sender__acct">{masked}</span>}
+        </div>
+      )}
     </div>
   );
 };
@@ -81,17 +124,19 @@ const ClassicBlue = ({ message, className = "" }) => (
               </td>
             </tr>
             <tr>
-              <td>Transaction Number</td>
+              <td>Transaction No.</td>
               <td>{message.transactionNumber}</td>
             </tr>
             <tr>
               <td>Transaction Date</td>
               <td>{formatDateTime(message.transactionDate)}</td>
             </tr>
-            {message.senderDetails && (
+            {hasSenderDetails(message) && (
               <tr>
                 <td>Sender Details</td>
-                <td>{message.senderDetails}</td>
+                <td>
+                  <SenderDetailsValue message={message} />
+                </td>
               </tr>
             )}
           </tbody>
@@ -115,7 +160,6 @@ const ClassicBlue = ({ message, className = "" }) => (
       </div>
 
       <div className="tpl-classic-blue__footer">
-        <p>This is an automated message — please do not reply to this email.</p>
         <p>
           © {new Date().getFullYear()} {message.senderName || "Our Team"}.
         </p>
@@ -166,17 +210,19 @@ const ModernGradient = ({ message, className = "" }) => (
             </strong>
           </div>
           <div className="tpl-modern-gradient__cell">
-            <span>Transaction Number</span>
+            <span>Transaction No.</span>
             <strong>{message.transactionNumber}</strong>
           </div>
           <div className="tpl-modern-gradient__cell">
             <span>Transaction Date</span>
             <strong>{formatDateTime(message.transactionDate)}</strong>
           </div>
-          {message.senderDetails && (
+          {hasSenderDetails(message) && (
             <div className="tpl-modern-gradient__cell tpl-modern-gradient__cell--wide">
               <span>Sender Details</span>
-              <strong>{message.senderDetails}</strong>
+              <strong>
+                <SenderDetailsValue message={message} />
+              </strong>
             </div>
           )}
         </div>
@@ -201,8 +247,7 @@ const ModernGradient = ({ message, className = "" }) => (
       </div>
 
       <p className="tpl-modern-gradient__footer">
-        Automated message — please do not reply. ©{" "}
-        {new Date().getFullYear()} {message.senderName || "Our Team"}
+        © {new Date().getFullYear()} {message.senderName || "Our Team"}
       </p>
     </div>
   </div>
@@ -252,17 +297,19 @@ const DarkProfessional = ({ message, className = "" }) => (
             </strong>
           </div>
           <div className="tpl-dark-professional__row">
-            <span>Transaction Number</span>
+            <span>Transaction No.</span>
             <strong>{message.transactionNumber}</strong>
           </div>
           <div className="tpl-dark-professional__row">
             <span>Transaction Date</span>
             <strong>{formatDateTime(message.transactionDate)}</strong>
           </div>
-          {message.senderDetails && (
+          {hasSenderDetails(message) && (
             <div className="tpl-dark-professional__row">
               <span>Sender Details</span>
-              <strong>{message.senderDetails}</strong>
+              <strong>
+                <SenderDetailsValue message={message} />
+              </strong>
             </div>
           )}
         </div>
@@ -287,8 +334,7 @@ const DarkProfessional = ({ message, className = "" }) => (
       </div>
 
       <div className="tpl-dark-professional__foot">
-        Automated message — please do not reply. ©{" "}
-        {new Date().getFullYear()} {message.senderName || "Our Team"}
+        © {new Date().getFullYear()} {message.senderName || "Our Team"}
       </div>
     </div>
   </div>
@@ -333,17 +379,19 @@ const MinimalClean = ({ message, className = "" }) => (
           </dd>
         </div>
         <div>
-          <dt>Transaction Number</dt>
+          <dt>Transaction No.</dt>
           <dd>{message.transactionNumber}</dd>
         </div>
         <div>
           <dt>Transaction Date</dt>
           <dd>{formatDateTime(message.transactionDate)}</dd>
         </div>
-        {message.senderDetails && (
+        {hasSenderDetails(message) && (
           <div>
             <dt>Sender Details</dt>
-            <dd>{message.senderDetails}</dd>
+            <dd>
+              <SenderDetailsValue message={message} />
+            </dd>
           </div>
         )}
       </dl>
@@ -365,7 +413,6 @@ const MinimalClean = ({ message, className = "" }) => (
       )}
 
       <footer className="tpl-minimal-clean__foot">
-        <p>Automated message — please do not reply.</p>
         <p>
           © {new Date().getFullYear()} {message.senderName || "Our Team"}
         </p>
@@ -420,17 +467,19 @@ const CorporateSplit = ({ message, className = "" }) => (
               </td>
             </tr>
             <tr>
-              <th>Transaction Number</th>
+              <th>Transaction No.</th>
               <td>{message.transactionNumber}</td>
             </tr>
             <tr>
               <th>Transaction Date</th>
               <td>{formatDateTime(message.transactionDate)}</td>
             </tr>
-            {message.senderDetails && (
+            {hasSenderDetails(message) && (
               <tr>
                 <th>Sender Details</th>
-                <td>{message.senderDetails}</td>
+                <td>
+                  <SenderDetailsValue message={message} />
+                </td>
               </tr>
             )}
           </tbody>
@@ -455,8 +504,7 @@ const CorporateSplit = ({ message, className = "" }) => (
         )}
 
         <p className="tpl-corporate-split__foot">
-          © {new Date().getFullYear()} {message.senderName || "Our Team"} —
-          automated message, please do not reply.
+          © {new Date().getFullYear()} {message.senderName || "Our Team"}
         </p>
       </div>
     </div>
@@ -509,17 +557,19 @@ const ElegantSerif = ({ message, className = "" }) => (
               </td>
             </tr>
             <tr>
-              <th>Transaction Number</th>
+              <th>Transaction No.</th>
               <td>{message.transactionNumber}</td>
             </tr>
             <tr>
               <th>Transaction Date</th>
               <td>{formatDateTime(message.transactionDate)}</td>
             </tr>
-            {message.senderDetails && (
+            {hasSenderDetails(message) && (
               <tr>
                 <th>Sender Details</th>
-                <td>{message.senderDetails}</td>
+                <td>
+                  <SenderDetailsValue message={message} />
+                </td>
               </tr>
             )}
           </tbody>
@@ -594,17 +644,19 @@ const BoldContrast = ({ message, className = "" }) => (
               </td>
             </tr>
             <tr>
-              <th>Transaction Number</th>
+              <th>Transaction No.</th>
               <td>{message.transactionNumber}</td>
             </tr>
             <tr>
               <th>Transaction Date</th>
               <td>{formatDateTime(message.transactionDate)}</td>
             </tr>
-            {message.senderDetails && (
+            {hasSenderDetails(message) && (
               <tr>
                 <th>Sender Details</th>
-                <td>{message.senderDetails}</td>
+                <td>
+                  <SenderDetailsValue message={message} />
+                </td>
               </tr>
             )}
           </tbody>
@@ -630,8 +682,7 @@ const BoldContrast = ({ message, className = "" }) => (
       </div>
 
       <footer className="tpl-bold-contrast__foot">
-        © {new Date().getFullYear()} {message.senderName || "Our Team"} —
-        automated message
+        © {new Date().getFullYear()} {message.senderName || "Our Team"}
       </footer>
     </div>
   </div>
@@ -677,17 +728,19 @@ const SoftPastel = ({ message, className = "" }) => (
           <dd>{message.accountNumber}</dd>
         </div>
         <div>
-          <dt>Transaction Number</dt>
+          <dt>Transaction No.</dt>
           <dd>{message.transactionNumber}</dd>
         </div>
         <div>
           <dt>Transaction Date</dt>
           <dd>{formatDateTime(message.transactionDate)}</dd>
         </div>
-        {message.senderDetails && (
+        {hasSenderDetails(message) && (
           <div>
             <dt>Sender Details</dt>
-            <dd>{message.senderDetails}</dd>
+            <dd>
+              <SenderDetailsValue message={message} />
+            </dd>
           </div>
         )}
       </dl>
@@ -762,16 +815,30 @@ const TechModern = ({ message, className = "" }) => (
           [{message.transactionStatus}]
         </span>
         {"\n"}
-        <span className="tpl-tech-modern__key">transaction_id</span>
+        <span className="tpl-tech-modern__key">transaction_no</span>
         <span>{message.transactionNumber}</span>
         {"\n"}
         <span className="tpl-tech-modern__key">timestamp</span>
         <span>{formatDateTime(message.transactionDate)}</span>
-        {message.senderDetails && (
+        {message.senderAccountName && (
           <>
             {"\n"}
-            <span className="tpl-tech-modern__key">sender</span>
-            <span>{message.senderDetails}</span>
+            <span className="tpl-tech-modern__key">sender_name</span>
+            <span>{message.senderAccountName}</span>
+          </>
+        )}
+        {message.senderBankName && (
+          <>
+            {"\n"}
+            <span className="tpl-tech-modern__key">sender_bank</span>
+            <span>{message.senderBankName}</span>
+          </>
+        )}
+        {message.senderAccountNumber && (
+          <>
+            {"\n"}
+            <span className="tpl-tech-modern__key">sender_account</span>
+            <span>{maskAccountNumber(message.senderAccountNumber)}</span>
           </>
         )}
       </pre>
@@ -791,10 +858,6 @@ const TechModern = ({ message, className = "" }) => (
           </a>
         </div>
       )}
-
-      <p className="tpl-tech-modern__foot">
-        {"// automated message — do not reply"}
-      </p>
     </div>
   </div>
 );
@@ -841,17 +904,19 @@ const LuxuryGold = ({ message, className = "" }) => (
               </td>
             </tr>
             <tr>
-              <th>Transaction Number</th>
+              <th>Transaction No.</th>
               <td>{message.transactionNumber}</td>
             </tr>
             <tr>
               <th>Transaction Date</th>
               <td>{formatDateTime(message.transactionDate)}</td>
             </tr>
-            {message.senderDetails && (
+            {hasSenderDetails(message) && (
               <tr>
                 <th>Sender Details</th>
-                <td>{message.senderDetails}</td>
+                <td>
+                  <SenderDetailsValue message={message} />
+                </td>
               </tr>
             )}
           </tbody>

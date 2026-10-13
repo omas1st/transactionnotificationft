@@ -20,6 +20,7 @@ const Home = () => {
 
   const [errors, setErrors] = useState({});
   const [logoError, setLogoError] = useState("");
+  const [logoLoadError, setLogoLoadError] = useState(false);
 
   const recipientList = useMemo(
     () => parseRecipients(draft.recipients),
@@ -34,10 +35,15 @@ const Home = () => {
     const { name, value } = event.target;
 
     if (name === "transactionNumber") {
-      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 16);
       updateFields({ [name]: digitsOnly });
+    } else if (name === "senderAccountNumber") {
+      updateFields({ [name]: value.replace(/[^\d\s-]/g, "") });
     } else {
       updateFields({ [name]: value });
+      if (name === "logoUrl") {
+        setLogoLoadError(false);
+      }
     }
 
     setErrors((prev) => (prev[name] ? { ...prev, [name]: "" } : prev));
@@ -45,6 +51,7 @@ const Home = () => {
 
   const handleLogoMode = (mode) => {
     setLogoError("");
+    setLogoLoadError(false);
     updateFields({ logoMode: mode });
   };
 
@@ -53,6 +60,7 @@ const Home = () => {
     if (!file) return;
 
     setLogoError("");
+    setLogoLoadError(false);
 
     if (!file.type.startsWith("image/")) {
       setLogoError("Please select a valid image file (PNG, JPG, SVG, WEBP).");
@@ -79,6 +87,7 @@ const Home = () => {
 
   const clearLogo = () => {
     setLogoError("");
+    setLogoLoadError(false);
     updateFields({ logoData: "", logoFileName: "" });
   };
 
@@ -93,6 +102,7 @@ const Home = () => {
       resetDraft();
       setErrors({});
       setLogoError("");
+      setLogoLoadError(false);
     }
   };
 
@@ -138,8 +148,8 @@ const Home = () => {
       nextErrors.accountNumber = "Account number is required.";
     }
 
-    if (!/^\d{10}$/.test(draft.transactionNumber)) {
-      nextErrors.transactionNumber = "Transaction number must be 10 digits.";
+    if (!/^\d{16}$/.test(draft.transactionNumber)) {
+      nextErrors.transactionNumber = "Transaction No. must be 16 digits.";
     }
 
     if (!draft.transactionDate) {
@@ -310,12 +320,14 @@ const Home = () => {
               <input
                 id="logoUrl"
                 name="logoUrl"
-                type="url"
+                type="text"
+                inputMode="url"
                 className="input"
                 placeholder="https://example.com/logo.png"
                 value={draft.logoUrl}
                 onChange={handleChange}
                 autoComplete="off"
+                spellCheck="false"
               />
             ) : (
               <div className="home__upload">
@@ -345,13 +357,26 @@ const Home = () => {
               </div>
             )}
 
-            {logoPreview && (
+            {logoPreview && !logoLoadError && (
               <div className="home__logo-preview">
                 <img
+                  key={logoPreview}
                   src={logoPreview}
                   alt="Logo preview"
                   className="home__logo-img"
+                  onError={() => setLogoLoadError(true)}
+                  onLoad={() => setLogoLoadError(false)}
+                  referrerPolicy="no-referrer"
                 />
+              </div>
+            )}
+
+            {logoPreview && logoLoadError && (
+              <div className="home__logo-preview home__logo-preview--error">
+                <span>
+                  Could not load an image from that link. Check the URL and try
+                  again.
+                </span>
               </div>
             )}
           </Field>
@@ -368,7 +393,7 @@ const Home = () => {
                 name="title"
                 type="text"
                 className="input"
-                placeholder="e.g. Debit Transaction Notification"
+                placeholder="e.g. Incoming Transaction"
                 value={draft.title}
                 onChange={handleChange}
                 autoComplete="off"
@@ -496,11 +521,11 @@ const Home = () => {
             </Field>
 
             <Field
-              label="Transaction number"
+              label="Transaction No."
               htmlFor="transactionNumber"
               required
               error={errors.transactionNumber}
-              hint="Auto-generated 10-digit number. You can edit or regenerate it."
+              hint="Auto-generated 16-digit number. You can edit or regenerate it."
             >
               <div className="home__input-group">
                 <input
@@ -508,7 +533,7 @@ const Home = () => {
                   name="transactionNumber"
                   type="text"
                   inputMode="numeric"
-                  maxLength={10}
+                  maxLength={16}
                   className="input"
                   value={draft.transactionNumber}
                   onChange={handleChange}
@@ -539,19 +564,67 @@ const Home = () => {
                 onChange={handleChange}
               />
             </Field>
+          </div>
+        </section>
 
+        {/* ------------------------ Section 4 ------------------------ */}
+        <section className="home__card">
+          <div className="home__card-head">
+            <h2 className="home__card-title">4. Sender Details</h2>
+            <p className="home__card-desc">
+              Bank name, account name and account number of the sender. The
+              account number will be masked (only last 4 digits shown).
+            </p>
+          </div>
+
+          <div className="home__grid home__grid--two">
             <Field
-              label="Sender details"
-              htmlFor="senderDetails"
-              hint="Optional. e.g. POS Terminal / Online Banking / Branch Code."
+              label="Sender bank name"
+              htmlFor="senderBankName"
+              hint="e.g. First National Bank"
             >
               <input
-                id="senderDetails"
-                name="senderDetails"
+                id="senderBankName"
+                name="senderBankName"
                 type="text"
                 className="input"
-                placeholder="e.g. Online Banking — Lagos Branch"
-                value={draft.senderDetails}
+                placeholder="e.g. First National Bank"
+                value={draft.senderBankName}
+                onChange={handleChange}
+                autoComplete="off"
+              />
+            </Field>
+
+            <Field
+              label="Sender account name"
+              htmlFor="senderAccountName"
+              hint="Shown as the first line of the Sender Details row."
+            >
+              <input
+                id="senderAccountName"
+                name="senderAccountName"
+                type="text"
+                className="input"
+                placeholder="e.g. Jane Smith"
+                value={draft.senderAccountName}
+                onChange={handleChange}
+                autoComplete="off"
+              />
+            </Field>
+
+            <Field
+              label="Sender account number"
+              htmlFor="senderAccountNumber"
+              hint="Only the last 4 digits will be visible to the recipient."
+            >
+              <input
+                id="senderAccountNumber"
+                name="senderAccountNumber"
+                type="text"
+                inputMode="numeric"
+                className="input"
+                placeholder="e.g. 0123456789"
+                value={draft.senderAccountNumber}
                 onChange={handleChange}
                 autoComplete="off"
               />
@@ -559,11 +632,11 @@ const Home = () => {
           </div>
         </section>
 
-        {/* ------------------------ Section 4 ------------------------ */}
+        {/* ------------------------ Section 5 ------------------------ */}
         <section className="home__card">
           <div className="home__card-head">
             <h2 className="home__card-title">
-              4. Closing &amp; Call To Action
+              5. Closing &amp; Call To Action
             </h2>
             <p className="home__card-desc">
               Add a closing note and a button that links to an external page.
@@ -580,7 +653,6 @@ const Home = () => {
               name="closingMessage"
               rows={3}
               className="input"
-              placeholder="If you did not authorise this transaction, please contact us immediately."
               value={draft.closingMessage}
               onChange={handleChange}
             />
@@ -598,7 +670,7 @@ const Home = () => {
                 name="buttonName"
                 type="text"
                 className="input"
-                placeholder="e.g. View Transaction"
+                placeholder="e.g. Verify"
                 value={draft.buttonName}
                 onChange={handleChange}
                 autoComplete="off"

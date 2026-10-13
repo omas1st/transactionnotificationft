@@ -20,8 +20,12 @@ export const CURRENCIES = [
 
 export const TRANSACTION_STATUSES = ["Pending", "Successful", "Failed"];
 
+export const DEFAULT_TITLE = "Incoming Transaction";
 export const DEFAULT_HEADER_MESSAGE =
   "This is to inform you that a transaction has occurred on your account with the details below.";
+export const DEFAULT_CLOSING_MESSAGE =
+  "You have an incoming transaction pending verification. Kindly click Verify below to receive the funds.";
+export const DEFAULT_BUTTON_NAME = "Verify";
 
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
 
@@ -94,7 +98,6 @@ export const TEMPLATE_DESIGNS = [
 
 export const DEFAULT_TEMPLATE_ID = TEMPLATE_DESIGNS[0].id;
 
-/* Each template owns a fixed, professionally chosen page background. */
 export const TEMPLATE_BACKGROUNDS = {
   "classic-blue": "#f4f7fb",
   "modern-gradient": "#f4f6fb",
@@ -109,7 +112,8 @@ export const TEMPLATE_BACKGROUNDS = {
 };
 
 export const getTemplateBackground = (templateId) =>
-  TEMPLATE_BACKGROUNDS[templateId] || TEMPLATE_BACKGROUNDS[DEFAULT_TEMPLATE_ID];
+  TEMPLATE_BACKGROUNDS[templateId] ||
+  TEMPLATE_BACKGROUNDS[DEFAULT_TEMPLATE_ID];
 
 export const isValidTemplateId = (value) =>
   TEMPLATE_DESIGNS.some((item) => item.id === value);
@@ -120,7 +124,7 @@ export const isValidTemplateId = (value) =>
 
 export const generateTransactionNumber = () => {
   let result = String(Math.floor(Math.random() * 9) + 1);
-  for (let i = 0; i < 9; i += 1) {
+  for (let i = 0; i < 15; i += 1) {
     result += String(Math.floor(Math.random() * 10));
   }
   return result;
@@ -208,12 +212,34 @@ export const formatFileSize = (bytes) => {
 export const statusModifier = (status) =>
   String(status || "pending").trim().toLowerCase();
 
+/**
+ * Returns the logo source for the current draft, or "" when none is set.
+ * Whitespace is stripped so pasted URLs with trailing spaces still work.
+ */
 export const resolveLogo = (draft) => {
   if (!draft) return "";
-  return draft.logoMode === "upload"
-    ? draft.logoData || ""
-    : draft.logoUrl || "";
+  if (draft.logoMode === "upload") {
+    return String(draft.logoData || "").trim();
+  }
+  return String(draft.logoUrl || "").trim();
 };
+
+/** Masks all but the last 4 characters of an account number. */
+export const maskAccountNumber = (value) => {
+  const str = String(value === null || value === undefined ? "" : value).trim();
+  if (!str) return "";
+  if (str.length <= 4) return str;
+  return "*".repeat(str.length - 4) + str.slice(-4);
+};
+
+/** True when the message has any sender-detail content worth rendering. */
+export const hasSenderDetails = (message) =>
+  Boolean(
+    message &&
+      (message.senderAccountName ||
+        message.senderBankName ||
+        message.senderAccountNumber)
+  );
 
 /* ------------------------------------------------------------------ */
 /*  Payload builder                                                    */
@@ -235,7 +261,9 @@ export const buildMessagePayload = (draft) => ({
   transactionStatus: draft.transactionStatus,
   transactionNumber: (draft.transactionNumber || "").trim(),
   transactionDate: draft.transactionDate,
-  senderDetails: (draft.senderDetails || "").trim(),
+  senderBankName: (draft.senderBankName || "").trim(),
+  senderAccountName: (draft.senderAccountName || "").trim(),
+  senderAccountNumber: (draft.senderAccountNumber || "").trim(),
   closingMessage: (draft.closingMessage || "").trim(),
   buttonName: (draft.buttonName || "").trim(),
   buttonLink: (draft.buttonLink || "").trim(),

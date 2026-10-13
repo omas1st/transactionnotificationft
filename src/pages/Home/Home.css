@@ -200,12 +200,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 240px;
+  max-width: 260px;
+  min-height: 76px;
+}
+
+.home__logo-preview--error {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: var(--red-600);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  padding: 14px 16px;
 }
 
 .home__logo-img {
+  display: block;
   max-height: 60px;
+  max-width: 100%;
   width: auto;
+  height: auto;
   object-fit: contain;
 }
 

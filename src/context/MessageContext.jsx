@@ -7,8 +7,11 @@ import React, {
   useState,
 } from "react";
 import {
+  DEFAULT_BUTTON_NAME,
+  DEFAULT_CLOSING_MESSAGE,
   DEFAULT_HEADER_MESSAGE,
   DEFAULT_TEMPLATE_ID,
+  DEFAULT_TITLE,
   generateTransactionNumber,
   getDefaultTransactionDate,
 } from "../utils/helpers";
@@ -23,13 +26,13 @@ export const createInitialDraft = () => ({
   recipients: "",
 
   /* Branding */
-  logoMode: "url", // "url" | "upload"
+  logoMode: "url",
   logoUrl: "",
   logoData: "",
   logoFileName: "",
 
   /* Message content */
-  title: "",
+  title: DEFAULT_TITLE,
   headerMessage: DEFAULT_HEADER_MESSAGE,
 
   /* Transaction details */
@@ -40,11 +43,15 @@ export const createInitialDraft = () => ({
   transactionStatus: "Pending",
   transactionNumber: generateTransactionNumber(),
   transactionDate: getDefaultTransactionDate(),
-  senderDetails: "",
+
+  /* Sender details */
+  senderBankName: "",
+  senderAccountName: "",
+  senderAccountNumber: "",
 
   /* Call to action */
-  closingMessage: "",
-  buttonName: "",
+  closingMessage: DEFAULT_CLOSING_MESSAGE,
+  buttonName: DEFAULT_BUTTON_NAME,
   buttonLink: "",
 
   /* Appearance */
