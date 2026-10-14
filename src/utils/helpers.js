@@ -213,11 +213,21 @@ export const statusModifier = (status) =>
   String(status || "pending").trim().toLowerCase();
 
 /**
- * Returns the logo source for the current draft, or "" when none is set.
- * Whitespace is stripped so pasted URLs with trailing spaces still work.
+ * Resolves the logo source for either a client draft or a server record.
+ *
+ * - Client draft (upload mode): `logoData` holds the base64 preview.
+ * - Server record after send:  `logo` holds the Cloudinary URL.
+ * - URL mode:                  `logo` and `logoUrl` are the same URL.
+ *
+ * Prefers a stored, non-base64 URL so the admin panel renders the hosted
+ * Cloudinary asset rather than the discarded base64 preview.
  */
 export const resolveLogo = (draft) => {
   if (!draft) return "";
+
+  const stored = String(draft.logo || "").trim();
+  if (stored && !stored.startsWith("data:")) return stored;
+
   if (draft.logoMode === "upload") {
     return String(draft.logoData || "").trim();
   }
